@@ -32,3 +32,4 @@ pkill -f ip_monitor.py
 
   * **`ip_summary.txt`**: A live summary of IP counts, updated after every check. This is the main file to watch.
   * **`ip_log.txt`**: A detailed, timestamped log of every IP check.
+  * **`nohup.out`**: A log file created by nohup that captures any console output or errors from the script. You can usually ignore this file.
