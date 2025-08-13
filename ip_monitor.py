@@ -9,6 +9,7 @@ import os
 
 # --- Configuration ---
 LOG_FILE = 'ip_log.txt'
+SUMMARY_FILE = 'ip_summary.txt' # New file for the final summary
 # We will ping a service that returns our public IP address.
 IP_CHECK_URL = 'https://api.ipify.org'
 # The interval in seconds to check the IP address.
@@ -17,8 +18,10 @@ CHECK_INTERVAL = 2
 # --- Globals ---
 # Use defaultdict to easily handle counting.
 ip_counts = defaultdict(int)
-# Get the absolute path for the log file
-log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), LOG_FILE)
+# Get the absolute path for the log files
+script_dir = os.path.dirname(os.path.abspath(__file__))
+log_file_path = os.path.join(script_dir, LOG_FILE)
+summary_file_path = os.path.join(script_dir, SUMMARY_FILE) # Path for the summary file
 
 
 def get_public_ip():
@@ -45,33 +48,52 @@ def log_ip(ip_address):
         f.write(log_entry)
 
 
-def print_summary():
+def save_and_print_summary():
     """
-    Prints a summary of the IP addresses and their counts.
+    Saves the summary of IP counts to a file and prints it to the console.
     This is called when the script is gracefully shut down.
     """
-    print("\n--- IP Address Connection Summary ---")
-    print(f"Log file saved to: {log_file_path}")
+    summary_lines = []
+    summary_lines.append("--- IP Address Connection Summary ---")
+    
     if not ip_counts:
-        print("No IP addresses were recorded.")
-        return
+        summary_lines.append("No IP addresses were recorded.")
+    else:
+        # Sort the IPs by count in descending order for a clear report
+        sorted_ips = sorted(ip_counts.items(), key=lambda item: item[1], reverse=True)
+        
+        header = f"{'Count':<10} {'IP Address'}"
+        separator = "-" * 30
+        
+        summary_lines.append(header)
+        summary_lines.append(separator)
+        for ip, count in sorted_ips:
+            summary_lines.append(f"{count:<10} {ip}")
+        summary_lines.append(separator)
 
-    # Sort the IPs by count in descending order for a clear report
-    sorted_ips = sorted(ip_counts.items(), key=lambda item: item[1], reverse=True)
+    summary_lines.append(f"\nDetailed log saved to: {log_file_path}")
+    summary_lines.append(f"This summary saved to: {summary_file_path}")
+    summary_lines.append("Script terminated.")
+    
+    summary_text = "\n".join(summary_lines)
 
-    print(f"{'Count':<10} {'IP Address'}")
-    print("-" * 30)
-    for ip, count in sorted_ips:
-        print(f"{count:<10} {ip}")
-    print("-" * 30)
-    print("Script terminated.")
+    # Write the summary to the summary file
+    try:
+        with open(summary_file_path, 'w') as f:
+            f.write(summary_text)
+    except IOError as e:
+        print(f"Error writing summary file: {e}")
+
+    # Also print the summary to the console
+    print("\n" + summary_text)
 
 
 def signal_handler(sig, frame):
     """
-    Handles termination signals (like Ctrl+C) to ensure the summary is printed.
+    Handles termination signals (like Ctrl+C) to ensure the summary is generated.
     """
     print("\nTermination signal received. Generating summary...")
+    # The 'finally' block in main() will handle saving the summary.
     sys.exit(0)
 
 
@@ -101,8 +123,8 @@ def main():
             # Wait for the specified interval
             time.sleep(CHECK_INTERVAL)
     finally:
-        # This ensures the summary is printed no matter how the script exits
-        print_summary()
+        # This ensures the summary is printed and saved no matter how the script exits
+        save_and_print_summary()
 
 
 if __name__ == "__main__":
